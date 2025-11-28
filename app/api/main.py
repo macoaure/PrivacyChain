@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.anonymization import router as anonymization_router
 from app.api.routes.operations import router as operations_router
 from app.api.routes.transactions import router as transactions_router
+from app.api.routes.access_control import router as access_control_router
 from app.config.settings import settings
 
 # Create FastAPI app
@@ -20,6 +21,7 @@ app = FastAPI(
         {"name": "Pure Functions", "description": "Pure functions of functional programming"},
         {"name": "Operations", "description": "Blockchain operations"},
         {"name": "Transactions", "description": "Transaction operations"},
+        {"name": "Access Control", "description": "AccessControl contract operations"},
     ]
 )
 
@@ -48,6 +50,7 @@ async def custom_exception_handler(request: Request, exception: MyCustomExceptio
 app.include_router(anonymization_router)
 app.include_router(operations_router)
 app.include_router(transactions_router)
+app.include_router(access_control_router, prefix="/access-control")
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
