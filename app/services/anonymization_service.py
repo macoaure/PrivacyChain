@@ -5,7 +5,7 @@ This module provides functions for simple and secure anonymization of data.
 """
 import hashlib
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.utils.helpers import generate_salt
 from app.utils.enums import HashMethod
 

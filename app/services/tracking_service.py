@@ -4,7 +4,7 @@ Service for tracking operations.
 This module handles the business logic for indexing, unindexing, and managing tracking data.
 """
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from app.crud.tracking_crud import TrackingCRUD
 from app.schemas.tracking import TrackingCreate
