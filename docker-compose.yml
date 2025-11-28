@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  ganache:
+    image: trufflesuite/ganache:latest
+    ports:
+      - "7545:8545"
+    command: --deterministic --accounts 10 --defaultBalanceEther 1000
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      ganache:
+        condition: service_started
+    environment:
+      DATABASE_URL: sqlite:///./privacychain.db
+      GANACHE_URL: http://ganache:8545
+    volumes:
+      - .:/app
+      - /app/__pycache__
