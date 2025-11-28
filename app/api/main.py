@@ -10,6 +10,8 @@ from app.api.routes.anonymization import router as anonymization_router
 from app.api.routes.operations import router as operations_router
 from app.api.routes.transactions import router as transactions_router
 from app.api.routes.access_control import router as access_control_router
+from app.api.routes.proxy_encryption import router as proxy_encryption_router
+from app.api.routes.secure_sharing import router as secure_sharing_router
 from app.config.settings import settings
 
 # Create FastAPI app
@@ -22,6 +24,8 @@ app = FastAPI(
         {"name": "Operations", "description": "Blockchain operations"},
         {"name": "Transactions", "description": "Transaction operations"},
         {"name": "Access Control", "description": "AccessControl contract operations"},
+        {"name": "Proxy Encryption", "description": "Proxy re-encryption operations for secure data sharing"},
+        {"name": "Secure Sharing", "description": "Integrated secure data sharing with proxy re-encryption"},
     ]
 )
 
@@ -51,6 +55,8 @@ app.include_router(anonymization_router)
 app.include_router(operations_router)
 app.include_router(transactions_router)
 app.include_router(access_control_router, prefix="/access-control")
+app.include_router(proxy_encryption_router, prefix="/proxy-encryption")
+app.include_router(secure_sharing_router, prefix="/secure-sharing")
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])

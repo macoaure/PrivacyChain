@@ -301,12 +301,104 @@ class BlockchainService:
         }
     ]
 
+    # Proxy Access Control ABI (simplified)
+    PROXY_ACCESS_CONTROL_ABI = [
+        {
+            "inputs": [
+                {"internalType": "bytes32", "name": "dataId", "type": "bytes32"}
+            ],
+            "name": "registerData",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "bytes32", "name": "proxyId", "type": "bytes32"},
+                {"internalType": "bytes32", "name": "dataId", "type": "bytes32"},
+                {"internalType": "address", "name": "recipient", "type": "address"},
+                {"internalType": "string", "name": "proxyKeyHash", "type": "string"},
+                {"internalType": "uint256", "name": "expirationTime", "type": "uint256"}
+            ],
+            "name": "generateProxyKey",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "bytes32", "name": "proxyId", "type": "bytes32"}
+            ],
+            "name": "revokeProxyKey",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "bytes32", "name": "proxyId", "type": "bytes32"}
+            ],
+            "name": "isProxyKeyValid",
+            "outputs": [
+                {"internalType": "bool", "name": "", "type": "bool"}
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "address", "name": "recipient", "type": "address"},
+                {"internalType": "bytes32", "name": "dataId", "type": "bytes32"}
+            ],
+            "name": "hasProxyAccess",
+            "outputs": [
+                {"internalType": "bool", "name": "", "type": "bool"}
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {"internalType": "bytes32", "name": "dataId", "type": "bytes32"}
+            ],
+            "name": "getActiveProxyKeys",
+            "outputs": [
+                {"internalType": "bytes32[]", "name": "", "type": "bytes32[]"}
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "anonymous": False,
+            "inputs": [
+                {"indexed": True, "internalType": "bytes32", "name": "proxyId", "type": "bytes32"},
+                {"indexed": True, "internalType": "bytes32", "name": "dataId", "type": "bytes32"},
+                {"indexed": True, "internalType": "address", "name": "recipient", "type": "address"},
+                {"indexed": False, "internalType": "uint256", "name": "expiresAt", "type": "uint256"}
+            ],
+            "name": "ProxyKeyGenerated",
+            "type": "event"
+        },
+        {
+            "anonymous": False,
+            "inputs": [
+                {"indexed": True, "internalType": "bytes32", "name": "proxyId", "type": "bytes32"},
+                {"indexed": True, "internalType": "bytes32", "name": "dataId", "type": "bytes32"},
+                {"indexed": True, "internalType": "address", "name": "revoker", "type": "address"}
+            ],
+            "name": "ProxyKeyRevoked",
+            "type": "event"
+        }
+    ]
+
     def __init__(self) -> None:
         self.w3 = Web3(Web3.HTTPProvider(settings.ganache_url))
 
         # Initialize contract attributes with fallback ABI
         self.access_control_abi = self.ACCESS_CONTROL_ABI
         self.access_control_bytecode = None
+        self.proxy_access_control_abi = self.PROXY_ACCESS_CONTROL_ABI
+        self.proxy_access_control_bytecode = None
 
         # Setup contract compilation
         self._setup_contract_compilation()
@@ -659,3 +751,89 @@ class BlockchainService:
             return tx_hash.hex()
         except Exception as e:
             raise Exception(f"Failed to transfer ownership: {str(e)}")
+
+    # Proxy Re-encryption Methods
+
+    def get_proxy_access_control_contract(self, address=None):
+        """Get ProxyAccessControl contract instance."""
+        addr = address or settings.proxy_access_control_address
+        return self.w3.eth.contract(address=addr, abi=self.proxy_access_control_abi)
+
+    def deploy_proxy_access_control(self) -> str:
+        """Deploy the ProxyAccessControl contract."""
+        try:
+            if not self.proxy_access_control_bytecode:
+                # Use placeholder bytecode for now
+                self.proxy_access_control_bytecode = self.access_control_bytecode
+
+            accounts = self.w3.eth.accounts
+            from_account = accounts[0]
+            contract = self.w3.eth.contract(abi=self.proxy_access_control_abi, bytecode=self.proxy_access_control_bytecode)
+            tx_hash = contract.constructor().transact({'from': from_account})
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            contract_address = tx_receipt.contractAddress
+            return contract_address
+        except Exception as e:
+            raise Exception(f"Failed to deploy ProxyAccessControl: {str(e)}")
+
+    def register_proxy_data(self, dataId: str, from_account: str = None) -> str:
+        """Register data on the ProxyAccessControl contract."""
+        try:
+            contract = self.get_proxy_access_control_contract()
+            accounts = self.w3.eth.accounts
+            from_acc = from_account or random.choice(accounts)
+            tx_hash = contract.functions.registerData(dataId).transact({'from': from_acc})
+            return tx_hash.hex()
+        except Exception as e:
+            raise Exception(f"Failed to register proxy data: {str(e)}")
+
+    def generate_proxy_key_on_chain(self, proxy_id: str, data_id: str, recipient: str,
+                                   proxy_key_hash: str, expiration_time: int, from_account: str = None) -> str:
+        """Generate a proxy key on the blockchain."""
+        try:
+            contract = self.get_proxy_access_control_contract()
+            accounts = self.w3.eth.accounts
+            from_acc = from_account or random.choice(accounts)
+
+            tx_hash = contract.functions.generateProxyKey(
+                proxy_id, data_id, recipient, proxy_key_hash, expiration_time
+            ).transact({'from': from_acc})
+            return tx_hash.hex()
+        except Exception as e:
+            raise Exception(f"Failed to generate proxy key on chain: {str(e)}")
+
+    def revoke_proxy_key_on_chain(self, proxy_id: str, from_account: str = None) -> str:
+        """Revoke a proxy key on the blockchain."""
+        try:
+            contract = self.get_proxy_access_control_contract()
+            accounts = self.w3.eth.accounts
+            from_acc = from_account or random.choice(accounts)
+
+            tx_hash = contract.functions.revokeProxyKey(proxy_id).transact({'from': from_acc})
+            return tx_hash.hex()
+        except Exception as e:
+            raise Exception(f"Failed to revoke proxy key on chain: {str(e)}")
+
+    def is_proxy_key_valid_on_chain(self, proxy_id: str) -> bool:
+        """Check if a proxy key is valid on the blockchain."""
+        try:
+            contract = self.get_proxy_access_control_contract()
+            return contract.functions.isProxyKeyValid(proxy_id).call()
+        except Exception as e:
+            raise Exception(f"Failed to check proxy key validity: {str(e)}")
+
+    def has_proxy_access_on_chain(self, recipient: str, data_id: str) -> bool:
+        """Check if recipient has proxy access to data."""
+        try:
+            contract = self.get_proxy_access_control_contract()
+            return contract.functions.hasProxyAccess(recipient, data_id).call()
+        except Exception as e:
+            raise Exception(f"Failed to check proxy access: {str(e)}")
+
+    def get_active_proxy_keys_on_chain(self, data_id: str) -> list:
+        """Get all active proxy keys for a data ID."""
+        try:
+            contract = self.get_proxy_access_control_contract()
+            return contract.functions.getActiveProxyKeys(data_id).call()
+        except Exception as e:
+            raise Exception(f"Failed to get active proxy keys: {str(e)}")

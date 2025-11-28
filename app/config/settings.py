@@ -24,6 +24,7 @@ class Settings:
         self.default_blockchain: str = "ETHEREUM"
         self.default_hash_method: str = "SHA256"
         self.access_control_address: str = os.getenv("ACCESS_CONTROL_ADDRESS", "0x5FbDB2315678afecb367f032d93F642f64180aa3")
+        self.proxy_access_control_address: str = os.getenv("PROXY_ACCESS_CONTROL_ADDRESS", "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512")
 
 
 # Global settings instance
