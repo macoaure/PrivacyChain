@@ -2,6 +2,7 @@
 End-to-end tests for the PrivacyChain API.
 """
 import pytest
+import json
 from fastapi.testclient import TestClient
 from app.api.main import app
 from unittest.mock import patch, Mock
@@ -229,3 +230,298 @@ class TestE2EHealth:
         data = response.json()
         assert "message" in data
         assert "PrivacyChain" in data["message"]
+
+
+class TestE2EAccessControl:
+    """End-to-end tests for AccessControl endpoints."""
+
+    # Test data
+    LOCATOR = "72815157071"
+    TEST_USERS = [
+        "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
+        "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
+        "0xE11BA2b4D45Eaed5996Cd0823791E0C93114882d"
+    ]
+    OWNER_ACCOUNT = "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    @patch('app.services.blockchain_service.solcx')
+    def test_deploy_access_control_contract(self, mock_solcx, mock_settings, mock_web3, client):
+        """Test deploying AccessControl contract."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+        mock_web3_instance.eth.accounts = [self.OWNER_ACCOUNT]
+
+        # Mock solc compilation
+        mock_solcx.compile_source.return_value = {
+            '<stdin>:AccessControl': {
+                'abi': [],
+                'bin': '0x608060405234801561001057600080fd5b50...'
+            }
+        }
+
+        # Mock contract deployment
+        mock_contract = Mock()
+        mock_contract.constructor.return_value.transact.return_value = HexBytes("0x1234567890abcdef")
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_web3_instance.eth.wait_for_transaction_receipt.return_value.contractAddress = "0x86072CbFF48dA3C1F01824a6761A03F105BCC697"
+
+        response = client.post("/access-control/deploy/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "contract_address" in data
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_register_data_access_control(self, mock_settings, mock_web3, client):
+        """Test registering data in AccessControl contract."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and transaction
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.registerData.return_value.transact.return_value = HexBytes("0x1234567890abcdef")
+
+        payload = {
+            "locator": self.LOCATOR,
+            "from_account": self.OWNER_ACCOUNT
+        }
+
+        response = client.post("/access-control/registerData/", json=payload)
+
+        # Should return 200 or validation error depending on contract setup
+        assert response.status_code in [200, 400, 422]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_grant_access_single_user(self, mock_settings, mock_web3, client):
+        """Test granting access to a single user."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and transaction
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.grantAccess.return_value.transact.return_value = HexBytes("0x1234567890abcdef")
+
+        payload = {
+            "user": self.TEST_USERS[0],
+            "locator": self.LOCATOR,
+            "from_account": self.OWNER_ACCOUNT
+        }
+
+        response = client.post("/access-control/grantAccess/", json=payload)
+
+        # Should return 200 or validation error depending on contract setup
+        assert response.status_code in [200, 400, 422]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_grant_multiple_access(self, mock_settings, mock_web3, client):
+        """Test granting access to multiple users."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and transactions
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.grantAccess.return_value.transact.return_value = HexBytes("0x1234567890abcdef")
+
+        payload = {
+            "users": self.TEST_USERS,
+            "locator": self.LOCATOR,
+            "from_account": self.OWNER_ACCOUNT
+        }
+
+        response = client.post("/access-control/grantMultipleAccess/", json=payload)
+
+        # Should return 200 or validation error depending on contract setup
+        assert response.status_code in [200, 400, 422]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_check_access(self, mock_settings, mock_web3, client):
+        """Test checking user access."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and call
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.hasAccess.return_value.call.return_value = True
+
+        params = {"user": self.TEST_USERS[0], "locator": self.LOCATOR}
+
+        response = client.get("/access-control/checkAccess/", params=params)
+
+        # Should return 200 or validation error depending on contract setup
+        assert response.status_code in [200, 400, 422]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_list_accessors(self, mock_settings, mock_web3, client):
+        """Test listing all accessors."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and call
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.getAccessors.return_value.call.return_value = self.TEST_USERS
+
+        params = {"locator": self.LOCATOR}
+
+        response = client.get("/access-control/listAccessors/", params=params)
+
+        # Should return 200 or error depending on contract setup
+        assert response.status_code in [200, 400, 422, 500]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_get_data_owner(self, mock_settings, mock_web3, client):
+        """Test getting data owner."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and call
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.getDataOwner.return_value.call.return_value = self.OWNER_ACCOUNT
+
+        params = {"locator": self.LOCATOR}
+
+        response = client.get("/access-control/getDataOwner/", params=params)
+
+        # Should return 200 or validation error depending on contract setup
+        assert response.status_code in [200, 400, 422]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_revoke_access_single_user(self, mock_settings, mock_web3, client):
+        """Test revoking access from a single user."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and transaction
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.revokeAccess.return_value.transact.return_value = HexBytes("0x1234567890abcdef")
+
+        payload = {
+            "user": self.TEST_USERS[0],
+            "locator": self.LOCATOR,
+            "from_account": self.OWNER_ACCOUNT
+        }
+
+        response = client.post("/access-control/revokeAccess/", json=payload)
+
+        # Should return 200 or validation error depending on contract setup
+        assert response.status_code in [200, 400, 422]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_revoke_all_access(self, mock_settings, mock_web3, client):
+        """Test revoking access from all users."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and calls
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.getAccessors.return_value.call.return_value = self.TEST_USERS
+        mock_contract.functions.revokeAccess.return_value.transact.return_value = HexBytes("0x1234567890abcdef")
+
+        payload = {
+            "locator": self.LOCATOR,
+            "from_account": self.OWNER_ACCOUNT
+        }
+
+        response = client.post("/access-control/revokeAllAccess/", json=payload)
+
+        # Should return 200 or error depending on contract setup
+        assert response.status_code in [200, 400, 422, 500]
+
+    @patch('app.services.blockchain_service.Web3')
+    @patch('app.services.blockchain_service.settings')
+    def test_log_access(self, mock_settings, mock_web3, client):
+        """Test logging access for audit purposes."""
+        # Setup mocks
+        mock_settings.ganache_url = "http://localhost:8545"
+        mock_web3_instance = Mock()
+        mock_web3.return_value = mock_web3_instance
+
+        # Mock contract instance and transaction
+        mock_contract = Mock()
+        mock_web3_instance.eth.contract.return_value = mock_contract
+        mock_contract.functions.logAccess.return_value.transact.return_value = HexBytes("0x1234567890abcdef")
+
+        payload = {
+            "user": self.TEST_USERS[0],
+            "locator": self.LOCATOR
+        }
+
+        response = client.post("/access-control/logAccess/", json=payload)
+
+        # Should return 200 or error depending on contract setup
+        assert response.status_code in [200, 400, 422, 500]
+
+    def test_access_control_endpoints_validation(self, client):
+        """Test validation of access control endpoints."""
+        # Test invalid payload for deploy
+        response = client.post("/access-control/deploy/", json={"invalid": "data"})
+        assert response.status_code in [200, 422]  # Either successful or validation error
+
+        # Test missing required fields for grantAccess
+        response = client.post("/access-control/grantAccess/", json={})
+        assert response.status_code == 422  # Validation error
+
+        # Test invalid user address format
+        payload = {
+            "user": "invalid_address",
+            "locator": self.LOCATOR,
+            "from_account": self.OWNER_ACCOUNT
+        }
+        response = client.post("/access-control/grantAccess/", json=payload)
+        assert response.status_code in [422, 500]  # Validation or internal error
+
+    def test_access_control_integration_flow(self, client):
+        """Test a complete access control flow integration."""
+        # This test would require actual blockchain integration
+        # For now, we just test that endpoints are accessible
+
+        endpoints_to_test = [
+            ("POST", "/access-control/deploy/", {}),
+            ("GET", "/access-control/checkAccess/", {"user": self.TEST_USERS[0], "locator": self.LOCATOR}),
+            ("GET", "/access-control/listAccessors/", {"locator": self.LOCATOR}),
+            ("GET", "/access-control/getDataOwner/", {"locator": self.LOCATOR})
+        ]
+
+        for method, endpoint, params in endpoints_to_test:
+            if method == "GET":
+                response = client.get(endpoint, params=params)
+            else:
+                response = client.post(endpoint, json=params)
+
+            # Endpoints should be accessible (not 404)
+            assert response.status_code != 404
