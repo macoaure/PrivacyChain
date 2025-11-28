@@ -169,3 +169,167 @@ class RemoveOnChainRequest(BaseModel):
     """
     locator: str = Field(..., title="Entity locator", description="Entity locator")
     datetime: str = Field(..., title="Timestamp", description="Timestamp")
+
+
+# Access Control Schemas
+
+class DeployAccessControlResponse(BaseModel):
+    """
+    Response model for AccessControl contract deployment.
+
+    Attributes:
+        contract_address (str): Deployed contract address.
+    """
+    contract_address: str = Field(..., title="Contract Address", description="Address of the deployed AccessControl contract")
+
+
+class RegisterDataRequest(BaseModel):
+    """
+    Model for registering data in AccessControl contract.
+
+    Attributes:
+        locator (str): Entity locator to generate dataId.
+        from_account (Optional[str]): Account to send transaction from.
+    """
+    locator: str = Field(..., title="Entity Locator", description="Entity locator used to generate dataId")
+    from_account: Optional[str] = Field(None, title="From Account", description="Account address to send transaction from")
+
+
+class AccessControlResponse(BaseModel):
+    """
+    Response model for access control operations.
+
+    Attributes:
+        transaction_hash (str): Transaction hash of the operation.
+    """
+    transaction_hash: str = Field(..., title="Transaction Hash", description="Hash of the blockchain transaction")
+
+
+class GrantAccessRequest(BaseModel):
+    """
+    Model for granting access to data.
+
+    Attributes:
+        user (str): User address to grant access to.
+        locator (str): Entity locator to generate dataId.
+        from_account (Optional[str]): Account to send transaction from (must be data owner).
+    """
+    user: str = Field(..., title="User Address", description="Ethereum address of the user to grant access to")
+    locator: str = Field(..., title="Entity Locator", description="Entity locator used to generate dataId")
+    from_account: Optional[str] = Field(None, title="From Account", description="Account address to send transaction from (must be data owner)")
+
+
+class RevokeAccessRequest(BaseModel):
+    """
+    Model for revoking access to data.
+
+    Attributes:
+        user (str): User address to revoke access from.
+        locator (str): Entity locator to generate dataId.
+        from_account (Optional[str]): Account to send transaction from (must be data owner).
+    """
+    user: str = Field(..., title="User Address", description="Ethereum address of the user to revoke access from")
+    locator: str = Field(..., title="Entity Locator", description="Entity locator used to generate dataId")
+    from_account: Optional[str] = Field(None, title="From Account", description="Account address to send transaction from (must be data owner)")
+
+
+class CheckAccessRequest(BaseModel):
+    """
+    Model for checking user access to data.
+
+    Attributes:
+        user (str): User address to check.
+        locator (str): Entity locator to generate dataId.
+    """
+    user: str = Field(..., title="User Address", description="Ethereum address of the user to check")
+    locator: str = Field(..., title="Entity Locator", description="Entity locator used to generate dataId")
+
+
+class AccessCheckResponse(BaseModel):
+    """
+    Response model for access check operations.
+
+    Attributes:
+        has_access (bool): Whether the user has access or not.
+        user (str): User address that was checked.
+        data_id (str): Data ID that was checked.
+    """
+    has_access: bool = Field(..., title="Has Access", description="Whether the user has access to the data")
+    user: str = Field(..., title="User Address", description="User address that was checked")
+    data_id: str = Field(..., title="Data ID", description="Data ID that was checked")
+
+
+class ListAccessorsRequest(BaseModel):
+    """
+    Model for listing data accessors.
+
+    Attributes:
+        locator (str): Entity locator to generate dataId.
+    """
+    locator: str = Field(..., title="Entity Locator", description="Entity locator used to generate dataId")
+
+
+class ListAccessorsResponse(BaseModel):
+    """
+    Response model for listing accessors.
+
+    Attributes:
+        accessors (list): List of user addresses with access.
+        total_count (int): Total number of accessors.
+        data_id (str): Data ID that was queried.
+    """
+    accessors: list = Field(..., title="Accessors", description="List of Ethereum addresses with access to the data")
+    total_count: int = Field(..., title="Total Count", description="Total number of users with access")
+    data_id: str = Field(..., title="Data ID", description="Data ID that was queried")
+
+
+class GetDataOwnerRequest(BaseModel):
+    """
+    Model for getting data owner.
+
+    Attributes:
+        locator (str): Entity locator to generate dataId.
+    """
+    locator: str = Field(..., title="Entity Locator", description="Entity locator used to generate dataId")
+
+
+class GetDataOwnerResponse(BaseModel):
+    """
+    Response model for getting data owner.
+
+    Attributes:
+        owner (str): Owner address.
+        data_id (str): Data ID that was queried.
+    """
+    owner: str = Field(..., title="Owner Address", description="Ethereum address of the data owner")
+    data_id: str = Field(..., title="Data ID", description="Data ID that was queried")
+
+
+class MultiUserAccessRequest(BaseModel):
+    """
+    Model for granting access to multiple users.
+
+    Attributes:
+        users (list): List of user addresses to grant access to.
+        locator (str): Entity locator to generate dataId.
+        from_account (Optional[str]): Account to send transactions from (must be data owner).
+    """
+    users: list = Field(..., title="User Addresses", description="List of Ethereum addresses to grant access to")
+    locator: str = Field(..., title="Entity Locator", description="Entity locator used to generate dataId")
+    from_account: Optional[str] = Field(None, title="From Account", description="Account address to send transactions from (must be data owner)")
+
+
+class MultiUserAccessResponse(BaseModel):
+    """
+    Response model for multi-user access operations.
+
+    Attributes:
+        successful_operations (list): List of successful operations with transaction hashes.
+        failed_operations (list): List of failed operations with error messages.
+        total_requested (int): Total number of operations requested.
+        successful_count (int): Number of successful operations.
+    """
+    successful_operations: list = Field(..., title="Successful Operations", description="List of successful operations")
+    failed_operations: list = Field(..., title="Failed Operations", description="List of failed operations")
+    total_requested: int = Field(..., title="Total Requested", description="Total number of operations requested")
+    successful_count: int = Field(..., title="Successful Count", description="Number of successful operations")
