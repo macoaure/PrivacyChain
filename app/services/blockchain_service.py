@@ -44,7 +44,7 @@ class BlockchainService:
                 'to': target,
                 'from': source,
                 'value': 1,
-                'data': content
+                'data': '0x' + content  # Send as hex data
             })
 
             return {"transaction_id": transaction_hash.hex()}
@@ -87,7 +87,11 @@ class BlockchainService:
         """
         try:
             tx = self.w3.eth.get_transaction(transaction_id)
-            anonymized_in_blockchain = tx.input[2:].decode('utf-8')  # Remove '0x' prefix and decode
+            # Since data was sent as '0x' + content, tx.input[2:] is the content
+            if isinstance(tx.input, str):
+                anonymized_in_blockchain = tx.input[2:]
+            else:
+                anonymized_in_blockchain = tx.input.hex()[2:]
 
             from app.services.anonymization_service import AnonymizationService
             result = AnonymizationService.secure_anonymize(content, salt, hash_method)
