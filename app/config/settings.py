@@ -23,6 +23,7 @@ class Settings:
         self.ganache_url: str = os.getenv("GANACHE_URL", "http://127.0.0.1:7545")
         self.default_blockchain: str = "ETHEREUM"
         self.default_hash_method: str = "SHA256"
+        self.access_control_address: str = os.getenv("ACCESS_CONTROL_ADDRESS", "0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
 
 # Global settings instance
